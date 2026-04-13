@@ -177,7 +177,7 @@ local eventFrame = CreateFrame("Frame", "WowStatTargetEventFrame", UIParent)
 --   applied, set bonuses activated, or rating diminishing returns recalculated.
 --   This catches changes that PLAYER_EQUIPMENT_CHANGED might miss.
 --
--- UNIT_AURA_CHANGED
+-- UNIT_AURA
 --   Fires when: a buff or debuff is applied, removed, or refreshed on any unit.
 --   We filter for unit == "player" because we only care about the player's own
 --   buffs (e.g. Power Infusion, Bloodlust, food buffs, flask buffs).
@@ -186,7 +186,7 @@ local eventFrame = CreateFrame("Frame", "WowStatTargetEventFrame", UIParent)
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 eventFrame:RegisterEvent("COMBAT_RATING_UPDATE")
-eventFrame:RegisterEvent("UNIT_AURA_CHANGED")
+eventFrame:RegisterEvent("UNIT_AURA")
 
 -- =============================================================================
 -- CURRENT STATS STORAGE
@@ -385,7 +385,7 @@ end
 -- to your handler function. Every time a registered event fires, WoW's C++
 -- engine calls your Lua handler with:
 --   handler(self, event, ...)
--- where `...` are event-specific arguments (e.g., for UNIT_AURA_CHANGED,
+-- where `...` are event-specific arguments (e.g., for UNIT_AURA,
 -- the first arg is the unitID like "player" or "target").
 --
 -- You typically use an if/elseif chain or a dispatch table to route each
@@ -439,11 +439,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             ns:UpdateUI()
         end
 
-    elseif event == "UNIT_AURA_CHANGED" then
+    elseif event == "UNIT_AURA" then
         -- =================================================================
         -- BUFF/DEBUFF CHANGE
         -- =================================================================
-        -- UNIT_AURA_CHANGED fires for ALL units (player, target, party
+        -- UNIT_AURA fires for ALL units (player, target, party
         -- members, etc.). We only care about the player's own auras.
         --
         -- The first variadic argument (...) is the unitID that was affected.

@@ -1,4 +1,4 @@
-## Interface: 110100
+## Interface: 120001
 ## Title: WowStatTarget
 ## Notes: Compare your current secondary stats against target values from murlok.io
 ## Author: felipecs
