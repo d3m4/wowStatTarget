@@ -1,0 +1,38 @@
+## Interface: 110100
+## Title: WowStatTarget
+## Notes: Compare your current secondary stats against target values from murlok.io
+## Author: felipecs
+## Version: 1.0.0
+## SavedVariables: WowStatTargetDB
+## DefaultState: enabled
+
+# ============================================================================
+# HOW .TOC FILES WORK IN WOW ADDONS:
+# ============================================================================
+# This is the "Table of Contents" file — the manifest that tells WoW about
+# your addon. WoW reads this file when loading addons to know:
+#
+#   1. Which game version this addon targets (## Interface)
+#   2. What to display in the addon list (## Title, ## Notes)
+#   3. Which variables to save between sessions (## SavedVariables)
+#   4. Which Lua/XML files to load, and in what ORDER (listed below)
+#
+# FILE LOAD ORDER MATTERS! Files listed first are executed first.
+# Since UI.lua and Settings.lua depend on functions defined in Core.lua,
+# and Core.lua + Settings.lua use data from Data.lua, the order is:
+#   Data.lua → Core.lua → UI.lua → Settings.lua
+#
+# Lines starting with # are comments (ignored by WoW).
+# ============================================================================
+
+# Data tables (class/spec lists) — no dependencies, loaded first
+Data.lua
+
+# Core addon logic — events, stat reading, utility functions
+Core.lua
+
+# Floating window UI — depends on Core.lua for stat data and formatting
+UI.lua
+
+# Settings panel — depends on Core.lua (db, slash commands) and Data.lua (dropdowns)
+Settings.lua
