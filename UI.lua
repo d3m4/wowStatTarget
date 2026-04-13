@@ -323,6 +323,22 @@ function ns:CreateMainWindow()
     frame.titleText = titleText
 
     -- -----------------------------------------------------------------
+    -- TITLE SEPARATOR LINE
+    -- -----------------------------------------------------------------
+    --
+    -- A thin horizontal line below the title text, mimicking the design
+    -- from the mockup. We use a Texture with a solid white color at low
+    -- opacity to create a subtle divider.
+    --
+    local titleSeparator = frame:CreateTexture(nil, "ARTWORK")
+    titleSeparator:SetColorTexture(1, 1, 1, 0.2) -- white at 20% opacity
+    titleSeparator:SetHeight(1) -- 1px line
+    titleSeparator:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -3)
+    titleSeparator:SetPoint("RIGHT", frame, "RIGHT", -WINDOW_PADDING, 0)
+
+    frame.titleSeparator = titleSeparator
+
+    -- -----------------------------------------------------------------
     -- "NO TARGETS SET" MESSAGE
     -- -----------------------------------------------------------------
     --
@@ -522,17 +538,21 @@ function ns:UpdateUI()
     -- Determine whether to show the title, arrows, bars, and which
     -- label style to use (full name vs. single letter).
     --
-    local showTitle = (layout == "A" or layout == "B")
+    -- All layouts show a title now:
+    --   A and B show "WOWSTATTARGET", C shows "WST"
+    local showTitle = true
     local showArrow = (layout == "A")
     local showBars  = (layout == "B")
     local useAbbrev = (layout == "C")
 
-    -- Show/hide the title text.
-    if showTitle then
-        frame.titleText:Show()
-        frame.titleText:SetFont(FONT_FILE, math.max(9, fontSize - 2), "OUTLINE")
+    -- Show the title text — "WST" for layout C, full name for A/B.
+    frame.titleText:Show()
+    frame.titleSeparator:Show()
+    frame.titleText:SetFont(FONT_FILE, math.max(9, fontSize - 2), "OUTLINE")
+    if layout == "C" then
+        frame.titleText:SetText("WST")
     else
-        frame.titleText:Hide()
+        frame.titleText:SetText("WOWSTATTARGET")
     end
 
     -- -----------------------------------------------------------------
@@ -654,7 +674,10 @@ function ns:UpdateUI()
     end
 
     -- Content width = label + gap + arrow + gap + value.
-    local contentWidth = maxLabelWidth + arrowWidth + maxValueWidth + 8
+    -- Layout C uses abbreviated labels (single letter), so we add more gap
+    -- to keep the values visually separated from the label.
+    local labelValueGap = useAbbrev and 20 or 8
+    local contentWidth = maxLabelWidth + arrowWidth + maxValueWidth + labelValueGap
     local windowWidth  = math.max(MIN_WINDOW_WIDTH, contentWidth + (WINDOW_PADDING * 2))
 
     -- Content height = title (if shown) + rows + gaps + bars (if shown).

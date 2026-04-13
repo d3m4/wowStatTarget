@@ -53,10 +53,10 @@ local defaults = {
     class = nil,        -- Player's class (e.g. "MAGE"), nil = not set
     spec = nil,         -- Player's spec (e.g. "Fire"), nil = not set
     targets = {
-        crit    = 0,    -- Target crit percentage
-        haste   = 0,    -- Target haste percentage
-        mastery = 0,    -- Target mastery percentage
-        versa   = 0,    -- Target versatility percentage
+        crit    = 20,   -- Target crit percentage (default example values)
+        haste   = 20,   -- Target haste percentage
+        mastery = 20,   -- Target mastery percentage
+        versa   = 20,   -- Target versatility percentage
     },
     layout = "A",       -- Layout mode: "A" (compact), "B" (bars), "C" (minimal)
     fontSize = 12,      -- Font size in points
