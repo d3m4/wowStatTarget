@@ -283,7 +283,7 @@ function ns:CreateSettingsPanel()
 
     -- Set the panel size. 520 wide is enough for our controls; 620 tall to
     -- fit everything without scrolling.
-    panel:SetSize(460, 440)
+    panel:SetSize(460, 465)
 
     -- Center the panel on screen. The user can reposition it by dragging.
     panel:SetPoint("CENTER")
@@ -518,7 +518,7 @@ function ns:CreateSettingsPanel()
         UIDropDownMenu_SetText(specDropdown, "Select spec...")
     end
 
-    currentY = currentY - lineSpacing
+    currentY = currentY - lineSpacing - 10  -- +10px after class/spec dropdowns
 
     -- =========================================================================
     -- 4. TARGET STATS
@@ -689,7 +689,7 @@ function ns:CreateSettingsPanel()
     end)
 
     panel.fontSlider = fontSlider
-    currentY = currentY - lineSpacing
+    currentY = currentY - lineSpacing - 10  -- +10px after layout/font row
 
     -- =========================================================================
     -- 7. THRESHOLD INPUTS
@@ -729,7 +729,7 @@ function ns:CreateSettingsPanel()
         panel.thresholdEditBoxes[thr.key] = editBox
     end
 
-    currentY = currentY - lineSpacing
+    currentY = currentY - lineSpacing - 5  -- +5px after thresholds
 
     -- =========================================================================
     -- 8. COLOR INPUTS
