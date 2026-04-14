@@ -397,7 +397,25 @@ end
 --
 -- You typically use an if/elseif chain or a dispatch table to route each
 -- event to the appropriate logic.
+--
+-- [LEARN] THROTTLING:
+-- Events like UNIT_AURA and COMBAT_RATING_UPDATE can fire dozens of times
+-- per second (e.g. entering a group, receiving buffs). Updating the UI on
+-- every single event would waste CPU. We use a simple throttle: schedule
+-- one update 0.1s in the future and ignore events until it runs.
 -- =============================================================================
+local pendingUpdate = false
+
+local function ScheduleStatUpdate()
+    if pendingUpdate then return end
+    pendingUpdate = true
+    C_Timer.After(0.1, function()
+        pendingUpdate = false
+        if ns.UpdateStats then ns:UpdateStats() end
+        if ns.UpdateUI then ns:UpdateUI() end
+    end)
+end
+
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         -- =================================================================
@@ -531,24 +549,18 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             return  -- Not the player's aura — ignore this event
         end
 
-        -- Player's buffs/debuffs changed — re-read stats and update display
-        ns:UpdateStats()
-        if ns.UpdateUI then
-            ns:UpdateUI()
-        end
+        -- Player's buffs/debuffs changed — schedule a throttled update.
+        ScheduleStatUpdate()
 
     else
         -- =================================================================
         -- PLAYER_EQUIPMENT_CHANGED / COMBAT_RATING_UPDATE
         -- =================================================================
-        -- Both of these events mean the player's stats have likely changed.
-        -- We don't need to inspect the event arguments — just re-read
-        -- everything and update the display.
+        -- Both of these events can fire rapidly (e.g. equipping a full set,
+        -- entering a group and receiving many buffs). We throttle updates
+        -- to avoid unnecessary CPU usage.
         -- =================================================================
-        ns:UpdateStats()
-        if ns.UpdateUI then
-            ns:UpdateUI()
-        end
+        ScheduleStatUpdate()
     end
 end)
 

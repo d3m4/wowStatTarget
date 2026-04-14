@@ -488,9 +488,22 @@ function ns:UpdateUI()
     if not frame then return end
 
     -- -----------------------------------------------------------------
+    -- VISIBILITY CHECK
+    -- -----------------------------------------------------------------
+    -- Respect the show/hide preference. When hidden via close button or
+    -- /wst toggle, we skip all layout work and just hide the frame.
+    -- When toggled back on, we show it and continue with the update.
+    local db = ns.db or {}
+    if db.window and db.window.visible == false then
+        frame:Hide()
+        return
+    else
+        frame:Show()
+    end
+
+    -- -----------------------------------------------------------------
     -- READ SETTINGS
     -- -----------------------------------------------------------------
-    local db       = ns.db or {}
     local targets  = db.targets or {}
     local layout   = db.layout or "A"
     local fontSize = db.fontSize or DEFAULT_FONT_SIZE
