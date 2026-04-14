@@ -401,65 +401,55 @@ end
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         -- =================================================================
-        -- INITIALIZATION (runs once per login / reload / zone change)
+        -- INITIALIZATION
         -- =================================================================
-        -- [LEARN] SAVEDVARIABLES LOADING TIMELINE:
-        -- WoW loads SavedVariables BEFORE PLAYER_ENTERING_WORLD fires.
-        -- At this point, the global variable WowStatTargetDB is either:
-        --   a) A table with the user's previously saved settings, OR
-        --   b) nil (first install, or the user deleted their SavedVariables)
-        --
-        -- We handle both cases:
-        --   - If nil: create a fresh copy of defaults
-        --   - If exists: merge defaults into it (adds any new keys from updates)
+        -- [LEARN] PLAYER_ENTERING_WORLD fires on login, /reload, AND every
+        -- zone transition (entering dungeons, joining groups, etc.).
+        -- We use a flag to distinguish the first load from subsequent ones.
+        -- SavedVariables init and spec detection only run ONCE.
+        -- Stats + UI refresh run every time (stats may change with zone).
         -- =================================================================
 
-        if WowStatTargetDB == nil then
-            -- First time running the addon — create a deep copy of defaults.
-            -- We deep copy so that the defaults table itself stays pristine
-            -- (in case we need it later for a reset operation).
-            WowStatTargetDB = DeepCopy(defaults)
-        else
-            -- Addon was previously installed — merge any new default keys
-            -- into the existing saved data without overwriting user settings.
-            MergeDefaults(WowStatTargetDB, defaults)
-        end
+        if not ns._initialized then
+            -- ---- FIRST LOAD ONLY ----
+            ns._initialized = true
 
-        -- Store a convenient reference to the database on the namespace table.
-        -- All other files (UI.lua, Settings.lua) can access settings via ns.db.
-        ns.db = WowStatTargetDB
+            if WowStatTargetDB == nil then
+                WowStatTargetDB = DeepCopy(defaults)
+            else
+                MergeDefaults(WowStatTargetDB, defaults)
+            end
 
-        -- Auto-detect class and spec on login.
-        -- If the player already has saved targets for this spec, load them.
-        local specIndex = GetSpecialization()
-        if specIndex then
-            local _, specName, _, _, _, classFile = GetSpecializationInfo(specIndex)
-            if classFile and specName then
-                ns.db.class = classFile
-                ns.db.spec  = specName
+            ns.db = WowStatTargetDB
 
-                -- Check if we have per-spec targets saved.
-                local specKey = classFile .. "-" .. specName
-                ns.db.specTargets = ns.db.specTargets or {}
-                if ns.db.specTargets[specKey] then
-                    ns.db.targets = DeepCopy(ns.db.specTargets[specKey])
+            -- Auto-detect class and spec on login.
+            local specIndex = GetSpecialization()
+            if specIndex then
+                local _, specName, _, _, _, classFile = GetSpecializationInfo(specIndex)
+                if classFile and specName then
+                    ns.db.class = classFile
+                    ns.db.spec  = specName
+
+                    -- Load per-spec targets if they exist (silently).
+                    local specKey = classFile .. "-" .. specName
+                    ns.db.specTargets = ns.db.specTargets or {}
+                    if ns.db.specTargets[specKey] then
+                        ns.db.targets = DeepCopy(ns.db.specTargets[specKey])
+                    end
                 end
             end
         end
 
-        -- Read the player's current stats from the WoW API
+        -- ---- EVERY LOAD (including zone changes) ----
+        -- Re-read stats and refresh UI. Stats can change between zones
+        -- (e.g. buffs falling off).
         ns:UpdateStats()
 
-        -- Create the floating comparison window (defined in UI.lua).
-        -- UI.lua is loaded after Core.lua in the .toc file, so this function
-        -- already exists on the ns table at this point.
-        -- We only create it once — subsequent PLAYER_ENTERING_WORLD events
-        -- (zone changes, reloads) just update the existing window.
+        -- Create the floating window once; skip on subsequent loads.
         if ns.CreateMainWindow and not ns.mainFrame then
             ns:CreateMainWindow()
         end
 
-        -- Refresh the floating window display with current stat values.
         if ns.UpdateUI then
             ns:UpdateUI()
         end
