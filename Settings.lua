@@ -283,7 +283,7 @@ function ns:CreateSettingsPanel()
 
     -- Set the panel size. 520 wide is enough for our controls; 620 tall to
     -- fit everything without scrolling.
-    panel:SetSize(520, 640)
+    panel:SetSize(460, 440)
 
     -- Center the panel on screen. The user can reposition it by dragging.
     panel:SetPoint("CENTER")
@@ -340,26 +340,21 @@ function ns:CreateSettingsPanel()
 
     -- Starting Y offset from the top of the panel for our first widget.
     -- We leave room for the title bar (~30px).
-    local contentTop = -35
-    local leftMargin = 20
-    local lineSpacing = 30  -- vertical space between rows of controls (was 45)
+    local contentTop = -30
+    local leftMargin = 16
+    local lineSpacing = 22  -- vertical space between sections
 
-    -- =========================================================================
-    -- CONTENT CONTAINER
-    -- =========================================================================
     -- All widgets are placed directly inside the panel (no scroll frame).
-    -- We keep spacing tight so everything fits without scrolling.
-    local scrollChild = panel  -- alias so we don't rename every widget reference
+    local scrollChild = panel
 
     -- currentY tracks the vertical offset as we add widgets top-to-bottom.
-    local currentY = contentTop - 5
+    local currentY = contentTop
 
     -- =========================================================================
-    -- 2. CLASS DROPDOWN
+    -- 2. CLASS & SPEC DROPDOWNS
     -- =========================================================================
-    -- Section label
     CreateSectionLabel(scrollChild, "Class & Specialization", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY})
-    currentY = currentY - 25
+    currentY = currentY - 18
 
     -- -------------------------------------------------------------------
     -- HOW UIDropDownMenu WORKS (detailed explanation):
@@ -399,11 +394,7 @@ function ns:CreateSettingsPanel()
     -- Create the class dropdown frame
     local classDropdown = CreateFrame("Frame", "WSTClassDropdown", scrollChild, "UIDropDownMenuTemplate")
     classDropdown:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftMargin - 16, currentY)
-    -- Note: UIDropDownMenu template adds ~16px left padding internally,
-    -- so we offset by -16 to align visually with other controls.
-
-    -- Set dropdown width (the displayed area, not the menu width)
-    UIDropDownMenu_SetWidth(classDropdown, 180)
+    UIDropDownMenu_SetWidth(classDropdown, 160)
 
     -- We'll store references for later use (RefreshSettingsValues needs them)
     panel.classDropdown = classDropdown
@@ -412,22 +403,17 @@ function ns:CreateSettingsPanel()
     -- (because class selection triggers a spec refresh), so we create both
     -- dropdowns now and initialize them after.
 
-    -- Create a label for the class dropdown
-    local classLabel = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    classLabel:SetPoint("BOTTOMLEFT", classDropdown, "TOPLEFT", 18, 2)
-    classLabel:SetText("Class")
+    -- No separate "Class" label — the section title is enough
 
     -- =========================================================================
     -- 3. SPEC DROPDOWN
     -- =========================================================================
     local specDropdown = CreateFrame("Frame", "WSTSpecDropdown", scrollChild, "UIDropDownMenuTemplate")
-    specDropdown:SetPoint("LEFT", classDropdown, "RIGHT", 10, 0)
-    UIDropDownMenu_SetWidth(specDropdown, 180)
+    specDropdown:SetPoint("LEFT", classDropdown, "RIGHT", 0, 0)
+    UIDropDownMenu_SetWidth(specDropdown, 160)
     panel.specDropdown = specDropdown
 
-    local specLabel = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    specLabel:SetPoint("BOTTOMLEFT", specDropdown, "TOPLEFT", 18, 2)
-    specLabel:SetText("Specialization")
+    -- No separate "Specialization" label — the section title is enough
 
     -- -------------------------------------------------------------------
     -- Spec dropdown initialization function.
@@ -532,15 +518,13 @@ function ns:CreateSettingsPanel()
         UIDropDownMenu_SetText(specDropdown, "Select spec...")
     end
 
-    currentY = currentY - lineSpacing - 5
+    currentY = currentY - lineSpacing
 
     -- =========================================================================
-    -- 4. TARGET STATS (4 numeric EditBoxes)
+    -- 4. TARGET STATS
     -- =========================================================================
-    -- These let the user input their target percentages for Crit, Haste,
-    -- Mastery, and Versatility. Values are stored in ns.db.targets.
     CreateSectionLabel(scrollChild, "Target Stats", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY})
-    currentY = currentY - 28
+    currentY = currentY - 20
 
     -- We define the 4 stats in a table so we can loop over them.
     -- Each entry maps a display label to a key in ns.db.targets.
@@ -559,8 +543,8 @@ function ns:CreateSettingsPanel()
         -- Calculate position: 2 per row
         local col = ((i - 1) % 2)  -- 0 or 1
         local row = math.floor((i - 1) / 2)  -- 0 or 1
-        local xOff = leftMargin + col * 200
-        local yOff = currentY - row * 35
+        local xOff = leftMargin + col * 195
+        local yOff = currentY - row * 26
 
         local lbl, editBox = CreateLabeledEditBox(
             scrollChild, stat.label,
@@ -610,17 +594,17 @@ function ns:CreateSettingsPanel()
     end
 
     -- Account for the 2 rows of stats
-    currentY = currentY - 80
+    currentY = currentY - 58
 
     -- =========================================================================
-    -- 5. LAYOUT DROPDOWN
+    -- 5. LAYOUT + FONT SIZE (side by side)
     -- =========================================================================
     CreateSectionLabel(scrollChild, "Layout", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY})
-    currentY = currentY - 25
+    currentY = currentY - 18
 
     local layoutDropdown = CreateFrame("Frame", "WSTLayoutDropdown", scrollChild, "UIDropDownMenuTemplate")
     layoutDropdown:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftMargin - 16, currentY)
-    UIDropDownMenu_SetWidth(layoutDropdown, 200)
+    UIDropDownMenu_SetWidth(layoutDropdown, 160)
     panel.layoutDropdown = layoutDropdown
 
     -- Layout options: each has an internal value and a display label.
@@ -660,40 +644,12 @@ function ns:CreateSettingsPanel()
         end
     end
 
-    currentY = currentY - lineSpacing
-
-    -- =========================================================================
-    -- 6. FONT SIZE SLIDER
-    -- =========================================================================
-    -- -------------------------------------------------------------------
-    -- HOW SLIDER WORKS (detailed explanation):
-    -- -------------------------------------------------------------------
-    -- A Slider is a horizontal (or vertical) bar with a draggable thumb.
-    -- WoW provides "OptionsSliderTemplate" which gives us:
-    --   - A background track
-    --   - A draggable thumb button
-    --   - Min/Max text labels at the ends (.Low and .High FontStrings)
-    --
-    -- Key methods:
-    --   SetMinMaxValues(min, max) — The range of allowed values
-    --   SetValue(val)            — Set the current position
-    --   SetValueStep(step)       — The increment between valid positions
-    --   SetObeyStepOnDrag(true)  — Forces the thumb to snap to step
-    --                              increments instead of sliding smoothly
-    --   GetValue()               — Returns the current numeric value
-    --
-    -- Key script:
-    --   OnValueChanged(self, value) — Fires when the value changes, either
-    --                                 from dragging or from SetValue().
-    --                                 `value` is the new numeric value.
-    -- -------------------------------------------------------------------
-
-    CreateSectionLabel(scrollChild, "Font Size", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY})
-    currentY = currentY - 28
+    -- Font Size — positioned to the right of the Layout dropdown
+    local fontSizeLabel = CreateSectionLabel(scrollChild, "Font", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin + 220, currentY + 18})
 
     local fontSlider = CreateFrame("Slider", "WSTFontSizeSlider", scrollChild, "OptionsSliderTemplate")
-    fontSlider:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY)
-    fontSlider:SetWidth(200)
+    fontSlider:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftMargin + 220, currentY)
+    fontSlider:SetWidth(160)
     fontSlider:SetHeight(17)
 
     -- Configure the slider range and step
@@ -709,7 +665,7 @@ function ns:CreateSettingsPanel()
 
     if fontSlider.Low then fontSlider.Low:SetText("8") end
     if fontSlider.High then fontSlider.High:SetText("24") end
-    if fontSlider.Text then fontSlider.Text:SetText("Font Size") end
+    if fontSlider.Text then fontSlider.Text:SetText("") end  -- label is already above
 
     -- Set initial value from database
     local initFontSize = (ns.db and ns.db.fontSize) or 12
@@ -738,14 +694,8 @@ function ns:CreateSettingsPanel()
     -- =========================================================================
     -- 7. THRESHOLD INPUTS
     -- =========================================================================
-    -- Thresholds control the color coding. The formula is:
-    --   ratio = (current / target) * 100
-    --   if ratio < low  → gray
-    --   if ratio < high → yellow
-    --   if ratio <= overcap → green
-    --   if ratio > overcap → red
-    CreateSectionLabel(scrollChild, "Color Thresholds", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY})
-    currentY = currentY - 28
+    CreateSectionLabel(scrollChild, "Thresholds", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY})
+    currentY = currentY - 20
 
     local thresholdDefs = {
         { label = "Low %",     key = "low",     default = 70 },
@@ -756,7 +706,7 @@ function ns:CreateSettingsPanel()
     panel.thresholdEditBoxes = {}
 
     for i, thr in ipairs(thresholdDefs) do
-        local xOff = leftMargin + (i - 1) * 140
+        local xOff = leftMargin + (i - 1) * 130
         local lbl, editBox = CreateLabeledEditBox(
             scrollChild, thr.label,
             {"TOPLEFT", scrollChild, "TOPLEFT", xOff, currentY},
@@ -782,20 +732,10 @@ function ns:CreateSettingsPanel()
     currentY = currentY - lineSpacing
 
     -- =========================================================================
-    -- 8. COLOR INPUTS (hex EditBoxes + swatches)
+    -- 8. COLOR INPUTS
     -- =========================================================================
-    -- Each color field has:
-    --   - A label (e.g. "Gray")
-    --   - An EditBox for the hex code (e.g. "#888888")
-    --   - A small color swatch (Texture) showing the current color
-    --
-    -- When the user types a valid hex code, we:
-    --   1. Convert it to RGB floats via ns:HexToRGB()
-    --   2. Save the RGB values to ns.db.colors
-    --   3. Update the swatch preview
-    --   4. Refresh the floating window
     CreateSectionLabel(scrollChild, "Colors", {"TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY})
-    currentY = currentY - 28
+    currentY = currentY - 20
 
     local colorDefs = {
         { label = "Gray",   key = "gray",   default = { 0.53, 0.53, 0.53 } },
@@ -811,8 +751,8 @@ function ns:CreateSettingsPanel()
         -- Two per row
         local col = ((i - 1) % 2)
         local row = math.floor((i - 1) / 2)
-        local xOff = leftMargin + col * 230
-        local yOff = currentY - row * 35
+        local xOff = leftMargin + col * 200
+        local yOff = currentY - row * 26
 
         local lbl, editBox = CreateLabeledEditBox(
             scrollChild, clr.label,
@@ -858,50 +798,44 @@ function ns:CreateSettingsPanel()
     end
 
     -- Account for the 2 rows of color inputs
-    currentY = currentY - 80
+    currentY = currentY - 58
 
     -- =========================================================================
-    -- 9. RESET BUTTON
+    -- 9. BUTTONS (centered)
     -- =========================================================================
-    -- A simple button that restores ALL settings to their default values.
-    -- Uses WoW's "UIPanelButtonTemplate" for consistent look with other
-    -- Blizzard UI buttons.
+    currentY = currentY - 8
 
-    currentY = currentY - 10
-
-    -- Reset to Defaults button
     local resetButton = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
-    resetButton:SetSize(160, 26)
+    resetButton:SetSize(140, 24)
     resetButton:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY)
     resetButton:SetText("Reset to Defaults")
 
     resetButton:SetScript("OnClick", function()
         if not ns.db then return end
 
-        ns.db.class = nil
-        ns.db.spec = nil
-        ns.db.targets = { crit = 0, haste = 0, mastery = 0, versa = 0 }
-        ns.db.layout = "A"
-        ns.db.fontSize = 12
-        ns.db.thresholds = { low = 70, high = 90, overcap = 100 }
-        ns.db.colors = {
-            gray   = { 0.53, 0.53, 0.53 },
-            yellow = { 1.0,  0.8,  0.0  },
-            green  = { 0.0,  1.0,  0.0  },
-            red    = { 1.0,  0.27, 0.27 },
-        }
+        -- Use the defaults defined in Core.lua instead of hardcoding.
+        if ns.ResetToDefaults then
+            ns:ResetToDefaults()
+        end
+
+        -- Auto-detect current class and spec so the dropdowns stay correct.
+        local specIndex = GetSpecialization()
+        if specIndex then
+            local _, specName, _, _, _, classFile = GetSpecializationInfo(specIndex)
+            if classFile and specName then
+                ns.db.class = classFile
+                ns.db.spec  = specName
+            end
+        end
 
         ns:RefreshSettingsValues()
-        if ns.UpdateStats then ns:UpdateStats() end
-        if ns.UpdateUI then ns:UpdateUI() end
-        print("|cff00ff00WowStatTarget:|r Settings reset to defaults.")
     end)
 
     -- Show Window button — lets the user re-show the floating window
     -- without needing to type /wst toggle in chat.
     local showButton = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
-    showButton:SetSize(140, 26)
-    showButton:SetPoint("LEFT", resetButton, "RIGHT", 10, 0)
+    showButton:SetSize(140, 24)
+    showButton:SetPoint("LEFT", resetButton, "RIGHT", 8, 0)
     showButton:SetText("Show Window")
 
     showButton:SetScript("OnClick", function()
