@@ -342,29 +342,17 @@ function ns:CreateSettingsPanel()
     -- We leave room for the title bar (~30px).
     local contentTop = -35
     local leftMargin = 20
-    local lineSpacing = 45  -- vertical space between rows of controls
+    local lineSpacing = 30  -- vertical space between rows of controls (was 45)
 
     -- =========================================================================
-    -- SCROLL FRAME WRAPPER
+    -- CONTENT CONTAINER
     -- =========================================================================
-    -- Since we have many controls, we put them inside a ScrollFrame so the
-    -- panel is usable even at small UI scales.
+    -- All widgets are placed directly inside the panel (no scroll frame).
+    -- We keep spacing tight so everything fits without scrolling.
+    local scrollChild = panel  -- alias so we don't rename every widget reference
 
-    -- Create a scroll frame using WoW's built-in scroll template.
-    local scrollFrame = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", panel.InsetBg or panel, "TOPLEFT", 6, contentTop)
-    scrollFrame:SetPoint("BOTTOMRIGHT", panel.InsetBg or panel, "BOTTOMRIGHT", -27, 6)
-
-    -- The scroll child is a plain frame that holds ALL our widgets.
-    -- Its height determines how far we can scroll.
-    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetWidth(scrollFrame:GetWidth() or 460)
-    scrollChild:SetHeight(1)  -- Will be set at the end after all widgets
-    scrollFrame:SetScrollChild(scrollChild)
-
-    -- We position everything relative to scrollChild.
     -- currentY tracks the vertical offset as we add widgets top-to-bottom.
-    local currentY = -10
+    local currentY = contentTop - 5
 
     -- =========================================================================
     -- 2. CLASS DROPDOWN
@@ -544,7 +532,7 @@ function ns:CreateSettingsPanel()
         UIDropDownMenu_SetText(specDropdown, "Select spec...")
     end
 
-    currentY = currentY - lineSpacing - 20
+    currentY = currentY - lineSpacing - 5
 
     -- =========================================================================
     -- 4. TARGET STATS (4 numeric EditBoxes)
@@ -745,7 +733,7 @@ function ns:CreateSettingsPanel()
     end)
 
     panel.fontSlider = fontSlider
-    currentY = currentY - lineSpacing + 5
+    currentY = currentY - lineSpacing
 
     -- =========================================================================
     -- 7. THRESHOLD INPUTS
@@ -879,40 +867,23 @@ function ns:CreateSettingsPanel()
     -- Uses WoW's "UIPanelButtonTemplate" for consistent look with other
     -- Blizzard UI buttons.
 
-    currentY = currentY - 15
+    currentY = currentY - 10
 
+    -- Reset to Defaults button
     local resetButton = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
-    resetButton:SetSize(180, 28)
+    resetButton:SetSize(160, 26)
     resetButton:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", leftMargin, currentY)
     resetButton:SetText("Reset to Defaults")
 
-    -- OnClick handler: restore defaults, then refresh all UI elements
     resetButton:SetScript("OnClick", function()
         if not ns.db then return end
 
-        -- -----------------------------------------------------------
-        -- Restore every field to its default value.
-        -- These defaults match the spec in the design document.
-        -- -----------------------------------------------------------
         ns.db.class = nil
         ns.db.spec = nil
-
-        ns.db.targets = {
-            crit = 0,
-            haste = 0,
-            mastery = 0,
-            versa = 0,
-        }
-
+        ns.db.targets = { crit = 0, haste = 0, mastery = 0, versa = 0 }
         ns.db.layout = "A"
         ns.db.fontSize = 12
-
-        ns.db.thresholds = {
-            low = 70,
-            high = 90,
-            overcap = 100,
-        }
-
+        ns.db.thresholds = { low = 70, high = 90, overcap = 100 }
         ns.db.colors = {
             gray   = { 0.53, 0.53, 0.53 },
             yellow = { 1.0,  0.8,  0.0  },
@@ -920,26 +891,26 @@ function ns:CreateSettingsPanel()
             red    = { 1.0,  0.27, 0.27 },
         }
 
-        -- Refresh all input fields in the settings panel to show defaults
         ns:RefreshSettingsValues()
-
-        -- Refresh the floating window
         if ns.UpdateStats then ns:UpdateStats() end
         if ns.UpdateUI then ns:UpdateUI() end
-
-        -- Print a confirmation to chat so the user knows it worked
         print("|cff00ff00WowStatTarget:|r Settings reset to defaults.")
     end)
 
-    currentY = currentY - 40
+    -- Show Window button — lets the user re-show the floating window
+    -- without needing to type /wst toggle in chat.
+    local showButton = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
+    showButton:SetSize(140, 26)
+    showButton:SetPoint("LEFT", resetButton, "RIGHT", 10, 0)
+    showButton:SetText("Show Window")
 
-    -- =========================================================================
-    -- SET SCROLL CHILD HEIGHT
-    -- =========================================================================
-    -- The scroll child needs a fixed height so the scrollbar knows how far
-    -- the content extends. We set it to the total height of our content.
-    -- math.abs because currentY is negative (we measure downward from top).
-    scrollChild:SetHeight(math.abs(currentY) + 20)
+    showButton:SetScript("OnClick", function()
+        if ns.db and ns.db.window then
+            ns.db.window.visible = true
+        end
+        if ns.UpdateUI then ns:UpdateUI() end
+        print("|cff00ccffWowStatTarget:|r Window shown.")
+    end)
 
     -- =========================================================================
     -- 10. REGISTER WITH BLIZZARD'S INTERFACE OPTIONS
