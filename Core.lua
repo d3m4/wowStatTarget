@@ -58,6 +58,12 @@ local defaults = {
         mastery = 20,   -- Target mastery percentage
         versa   = 20,   -- Target versatility percentage
     },
+    -- Per-spec saved targets. When the player configures targets for a spec,
+    -- they are stored here keyed by "CLASS-Spec" (e.g. "MONK-Windwalker").
+    -- When switching specs, the addon looks up saved targets here.
+    -- If no entry exists for the new spec, targets reset to defaults and
+    -- a warning is printed in chat.
+    specTargets = {},
     layout = "A",       -- Layout mode: "A" (compact), "B" (bars), "C" (minimal)
     fontSize = 12,      -- Font size in points
     thresholds = {
@@ -187,6 +193,7 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 eventFrame:RegisterEvent("COMBAT_RATING_UPDATE")
 eventFrame:RegisterEvent("UNIT_AURA")
+eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 
 -- =============================================================================
 -- CURRENT STATS STORAGE
@@ -422,6 +429,24 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         -- All other files (UI.lua, Settings.lua) can access settings via ns.db.
         ns.db = WowStatTargetDB
 
+        -- Auto-detect class and spec on login.
+        -- If the player already has saved targets for this spec, load them.
+        local specIndex = GetSpecialization()
+        if specIndex then
+            local _, specName, _, _, _, classFile = GetSpecializationInfo(specIndex)
+            if classFile and specName then
+                ns.db.class = classFile
+                ns.db.spec  = specName
+
+                -- Check if we have per-spec targets saved.
+                local specKey = classFile .. "-" .. specName
+                ns.db.specTargets = ns.db.specTargets or {}
+                if ns.db.specTargets[specKey] then
+                    ns.db.targets = DeepCopy(ns.db.specTargets[specKey])
+                end
+            end
+        end
+
         -- Read the player's current stats from the WoW API
         ns:UpdateStats()
 
@@ -437,6 +462,68 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         -- Refresh the floating window display with current stat values.
         if ns.UpdateUI then
             ns:UpdateUI()
+        end
+
+    elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
+        -- =================================================================
+        -- SPEC CHANGE DETECTION
+        -- =================================================================
+        -- [LEARN] PLAYER_SPECIALIZATION_CHANGED fires whenever the player
+        -- switches their specialization (e.g. from Windwalker to Brewmaster).
+        --
+        -- We use this to:
+        --   1. Save the current targets under the OLD spec key
+        --   2. Detect the new class/spec
+        --   3. Look up saved targets for the new spec
+        --   4. If found → load them; if not → reset to defaults + warn
+        -- =================================================================
+
+        if ns.db then
+            -- Save current targets under the old spec key before switching.
+            -- The key format is "CLASS-Spec" (e.g. "MONK-Windwalker").
+            local oldClass = ns.db.class
+            local oldSpec  = ns.db.spec
+            if oldClass and oldSpec then
+                local oldKey = oldClass .. "-" .. oldSpec
+                ns.db.specTargets = ns.db.specTargets or {}
+                ns.db.specTargets[oldKey] = DeepCopy(ns.db.targets)
+            end
+
+            -- Detect new class and spec using WoW API.
+            -- GetSpecialization() returns the current spec INDEX (1, 2, 3, or 4).
+            -- GetSpecializationInfo() returns details about that spec.
+            local specIndex = GetSpecialization()
+            if specIndex then
+                local _, newSpecName, _, _, _, newClassFile = GetSpecializationInfo(specIndex)
+                local newKey = newClassFile .. "-" .. newSpecName
+
+                -- Update class/spec in saved settings.
+                ns.db.class = newClassFile
+                ns.db.spec  = newSpecName
+
+                -- Look up saved targets for the new spec.
+                ns.db.specTargets = ns.db.specTargets or {}
+                if ns.db.specTargets[newKey] then
+                    -- Found saved targets for this spec — load them.
+                    ns.db.targets = DeepCopy(ns.db.specTargets[newKey])
+                    print("|cff00ccffWowStatTarget:|r Loaded saved targets for " .. newSpecName .. ".")
+                else
+                    -- No saved targets for this spec — reset to defaults and warn.
+                    ns.db.targets = DeepCopy(defaults.targets)
+                    print("|cffff4444WowStatTarget:|r No saved targets for |cffffffff" .. newSpecName .. "|r. Using defaults — configure via /wst")
+                end
+            end
+
+            -- Re-read stats (they change with spec) and refresh UI.
+            ns:UpdateStats()
+            if ns.UpdateUI then
+                ns:UpdateUI()
+            end
+
+            -- Refresh settings panel if open.
+            if ns.RefreshSettingsValues then
+                ns:RefreshSettingsValues()
+            end
         end
 
     elseif event == "UNIT_AURA" then

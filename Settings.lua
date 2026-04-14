@@ -600,6 +600,17 @@ function ns:CreateSettingsPanel()
             local val = self:GetNumber()  -- GetNumber() returns 0 for empty/invalid
             if ns.db and ns.db.targets then
                 ns.db.targets[stat.key] = val
+
+                -- Also save to per-spec storage so targets persist across spec changes.
+                if ns.db.class and ns.db.spec then
+                    local specKey = ns.db.class .. "-" .. ns.db.spec
+                    ns.db.specTargets = ns.db.specTargets or {}
+                    if not ns.db.specTargets[specKey] then
+                        ns.db.specTargets[specKey] = {}
+                    end
+                    ns.db.specTargets[specKey][stat.key] = val
+                end
+
                 -- Refresh the floating window to reflect the new target
                 if ns.UpdateStats then ns:UpdateStats() end
                 if ns.UpdateUI then ns:UpdateUI() end
