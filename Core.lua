@@ -31,6 +31,26 @@
 local addonName, ns = ...
 
 -- =============================================================================
+-- [LEARN] SECRET VALUES (WoW 12.0.5+)
+-- =============================================================================
+-- Starting with patch 12.0.5 (Midnight, April 2026), Blizzard tightened the
+-- "Secret Values" system: APIs that return player stats (GetCritChance,
+-- UnitSpellHaste, GetMasteryEffect, GetCombatRatingBonus) will return a
+-- *secret number* whenever the player's auras are considered secret (e.g. in
+-- certain combat encounters).
+--
+-- You CAN store or pass a secret number around, but any numeric operation on
+-- it (math.floor, +, -, string.format with %d, etc.) while execution is
+-- "tainted" by an addon throws:
+--   "attempt to perform numeric conversion on a secret number value"
+--
+-- The global `issecretvalue(v)` is the safe way to check before doing math.
+-- On older clients this global doesn't exist, so we fall back to a stub that
+-- always reports "not secret" (the old behavior).
+-- =============================================================================
+local issecretvalue = _G.issecretvalue or function() return false end
+
+-- =============================================================================
 -- DEFAULT SETTINGS
 -- =============================================================================
 -- These defaults are used when the addon is installed for the first time (no
@@ -245,17 +265,35 @@ ns.currentStats = {
 --   Example return: 2.15 (meaning 2.15% bonus damage from versatility).
 -- =============================================================================
 function ns:UpdateStats()
-    -- Read each stat from the WoW API and store it
-    self.currentStats.crit    = GetCritChance()
-    self.currentStats.haste   = UnitSpellHaste("player")
+    -- [LEARN] 12.0.5 SECRET-VALUE GUARD
+    -- Each of these APIs may now return a "secret number" (see the note at
+    -- the top of this file). We read the return value into a local first,
+    -- check if it is secret, and only overwrite our stored stat when it is
+    -- a plain number. If it *is* secret, we keep the last known good value,
+    -- so the UI shows slightly stale — but always renderable — data.
+    local crit = GetCritChance()
+    if not issecretvalue(crit) then
+        self.currentStats.crit = crit
+    end
+
+    local haste = UnitSpellHaste("player")
+    if not issecretvalue(haste) then
+        self.currentStats.haste = haste
+    end
 
     -- GetMasteryEffect() returns two values; we only want the first one.
     -- The parentheses around the call discard the second return value.
-    self.currentStats.mastery = (GetMasteryEffect())
+    local mastery = (GetMasteryEffect())
+    if not issecretvalue(mastery) then
+        self.currentStats.mastery = mastery
+    end
 
     -- CR_VERSATILITY_DAMAGE_DONE is a WoW global constant (number).
     -- GetCombatRatingBonus() converts a combat rating into its percentage bonus.
-    self.currentStats.versa   = GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE)
+    local versa = GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE)
+    if not issecretvalue(versa) then
+        self.currentStats.versa = versa
+    end
 end
 
 -- =============================================================================
@@ -476,8 +514,16 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         -- =================================================================
         -- SPEC CHANGE DETECTION
         -- =================================================================
-        -- [LEARN] PLAYER_SPECIALIZATION_CHANGED fires whenever the player
-        -- switches their specialization (e.g. from Windwalker to Brewmaster).
+        -- [LEARN] PLAYER_SPECIALIZATION_CHANGED fires whenever ANY unit the
+        -- client knows about switches specialization — the player themselves,
+        -- AND every party/raid member whose spec info streams in (e.g. as
+        -- they come into range, join the group, or zone in).
+        --
+        -- The first variadic argument is the unitID of the unit that changed.
+        -- We must filter on it, otherwise every raid member's spec update
+        -- triggers a "Loaded saved targets" message for OUR spec.
+        --
+        -- Same pattern as UNIT_AURA below.
         --
         -- We use this to:
         --   1. Save the current targets under the OLD spec key
@@ -485,6 +531,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         --   3. Look up saved targets for the new spec
         --   4. If found → load them; if not → reset to defaults + warn
         -- =================================================================
+
+        local unit = ...
+        if unit ~= "player" then
+            return  -- Spec change on some other raid/party member — ignore.
+        end
 
         if ns.db then
             -- Save current targets under the old spec key before switching.
